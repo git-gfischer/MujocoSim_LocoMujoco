@@ -145,13 +145,20 @@ def load_robot_conf_file(env_name: str):
     else:
         conf_name = env_name
     filename = f"{conf_name}.yaml"
-    filepath = os.path.join(PATH_TO_SMPL_ROBOT_CONF, filename)
-    if not os.path.exists(filepath):
-        raise FileNotFoundError(f"YAML file '{filename}' not found in path: {PATH_TO_SMPL_ROBOT_CONF}")
-    default_conf = OmegaConf.load(PATH_TO_SMPL_ROBOT_CONF / "defaults.yaml")
-    robot_conf = OmegaConf.load(filepath)
-    robot_conf = OmegaConf.merge(default_conf, robot_conf)
-    return robot_conf
+    filepaths = [os.path.join(PATH_TO_SMPL_ROBOT_CONF, filename)]
+    custom_smpl_robot_confs = loco_mujoco.get_variable("LOCOMUJOCO_CUSTOM_SMPL_CONF_PATH")
+    custom_smpl_robot_confs = [custom_smpl_robot_confs] if isinstance(custom_smpl_robot_confs, str)\
+        else custom_smpl_robot_confs
+    filepaths += [os.path.join(p, filename) for p in custom_smpl_robot_confs]
+    for filepath in filepaths:
+        if not os.path.exists(filepath):
+            continue
+        default_conf = OmegaConf.load(PATH_TO_SMPL_ROBOT_CONF / "defaults.yaml")
+        robot_conf = OmegaConf.load(filepath)
+        robot_conf = OmegaConf.merge(default_conf, robot_conf)
+        return robot_conf
+
+    raise FileNotFoundError(f"YAML file '{filename}' not found in paths: {filepaths}")
 
 
 def to_t_pose(env, robot_conf):

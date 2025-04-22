@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools", "wheel", "wget"]
+requires = ["setuptools", "wheel", "wget", "pyyaml"]
 
 [project]
 name = "loco-mujoco"
@@ -64,3 +64,5 @@ loco-mujoco-set-conv-amass-path = "loco_mujoco.utils:set_converted_amass_path"
 loco-mujoco-set-lafan1-path = "loco_mujoco.utils:set_lafan1_path"
 loco-mujoco-set-conv-lafan1-path = "loco_mujoco.utils:set_converted_lafan1_path"
 loco-mujoco-set-all-caches = "loco_mujoco.utils:set_all_caches"
+loco-mujoco-add-variable = "loco_mujoco.utils:add_variable_cli"
+loco-mujoco-remove-variable = "loco_mujoco.utils:remove_variable_cli"
