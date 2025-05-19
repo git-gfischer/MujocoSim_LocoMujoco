@@ -38,6 +38,7 @@ from loco_mujoco.trajectory import (
     interpolate_trajectories,
 )
 from loco_mujoco.datasets.data_generation import ExtendTrajData, optimize_for_collisions
+from loco_mujoco.core.utils.mujoco import mj_get_collision_dist_and_normal
 from loco_mujoco import PATH_TO_SMPL_ROBOT_CONF
 from loco_mujoco.utils import setup_logger
 from loco_mujoco.core.utils.mujoco import mj_jntname2qposid, mj_jntname2qvelid
@@ -234,7 +235,10 @@ def fit_smpl_motion(
     sites_for_mimic = env.sites_for_mimic
     site_ids = [mujoco.mj_name2id(env._model, mujoco.mjtObj.mjOBJ_SITE, s) for s in sites_for_mimic]
     target_mocap_bodies = ["target_mocap_body_" + s for s in sites_for_mimic]
-    mjspec = add_mocap_bodies(mjspec, sites_for_mimic, target_mocap_bodies, robot_conf, add_equality_constraint=True)
+    mjspec = add_mocap_bodies(mjspec, sites_for_mimic, target_mocap_bodies, robot_conf,
+                              add_equality_constraint=True,
+                              height_adjustment_geom_names=robot_conf.optimization_params.height_adjustment_geom_names,
+                              max_height_adjustment=robot_conf.optimization_params.max_height_adjustment)
     env.reload_mujoco(mjspec)
     key = jax.random.key(0)
     env.reset(key)
@@ -281,6 +285,8 @@ def fit_smpl_motion(
     env._data.qpos = qpos_init
 
     qpos = np.zeros((len_traj, env._model.nq))
+
+    min_dist_feet_floor = np.inf if len(robot_conf.optimization_params.height_adjustment_geom_names) > 0 else 0.0
     for i in tqdm(range(len_traj)):
 
         mocap_pos, mocap_quat = get_xpos_and_xquat(global_pos[i, smpl2mimic_site_idx],
@@ -293,6 +299,14 @@ def fit_smpl_motion(
 
         # save qpos
         qpos[i] = env._data.qpos.copy()
+
+        # get min distance to floor from height adjustment geoms
+        floor_id = mujoco.mj_name2id(env.model, mujoco.mjtObj.mjOBJ_GEOM, "floor")
+        for geom in robot_conf.optimization_params.height_adjustment_geom_names:
+            geom_id = mujoco.mj_name2id(env.model, mujoco.mjtObj.mjOBJ_GEOM, geom)
+            dist, _ = mj_get_collision_dist_and_normal(geom_id, floor_id, env._data, np)
+            dist, _ = mj_get_collision_dist_and_normal(geom_id, floor_id, env._data, np)
+            min_dist_feet_floor = min(min_dist_feet_floor, dist)
 
         if visualize:
             env.render()
@@ -321,6 +335,9 @@ def fit_smpl_motion(
     free_joint_pos = free_joint_pos[1:-1]
     free_joint_quat = free_joint_quat[1:-1]
     joint_pos = joint_pos[1:-1]
+
+    # add min distance for geom based height adjustment
+    free_joint_pos[:, 2] -= min_dist_feet_floor
 
     # concatenate free joint qpos and qvel
     free_joint_qpos = np.concatenate([free_joint_pos, free_joint_quat], axis=1)

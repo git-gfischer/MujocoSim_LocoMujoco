@@ -134,7 +134,17 @@ def mj_get_collision_dist_and_normal(geom_id1, geom_id2, data, backend):
         dist = data.contact.dist[idx] * mask[idx]
         normal = (dist < 0) * data.contact.frame[idx, 0, :3]
     else:
-        raise NotImplementedError
+        found = False
+        dist = 0.0
+        normal = np.zeros(3)
+        for i in range(data.ncon):
+            con = data.contact[i]
+            if ((con.geom[0] == geom_id1 and con.geom[1] == geom_id2) or
+                (con.geom[0] == geom_id2 and con.geom[1] == geom_id1)):
+                dist = con.dist
+                normal = con.frame[:3] if dist < 0 else np.zeros(3)
+                found = True
+                break
 
     return dist, normal
 
