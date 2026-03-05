@@ -6,6 +6,7 @@ name: Continuous Integration
 on:
   push:
     branches: [ master, dev ]
+  workflow_dispatch:   # allows "Run workflow" from Actions tab
 
 jobs:
   build:
