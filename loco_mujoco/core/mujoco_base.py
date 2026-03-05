@@ -409,6 +409,7 @@ class Mujoco:
         data, carry = self._init_state_handler.reset(self, model, data, carry, np)
         data, carry = self._domain_randomizer.reset(self, model, data, carry, np)
         data, carry = self._reward_function.reset(self, model, data, carry, np)
+        data, carry = self._control_func.reset(self, model, data, carry, np)
 
         return data, carry
 

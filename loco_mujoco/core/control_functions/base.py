@@ -64,6 +64,27 @@ class ControlFunction(StatefulObject):
         assert_backend_is_supported(backend)
         raise NotImplementedError
 
+    def reset(self, env: Any,
+              model: Union[MjModel, Model],
+              data: Union[MjData, Data],
+              carry: Any,
+              backend: ModuleType) -> Tuple[Union[MjData, Data], Any]:
+        """
+        Reset control-function state (and optionally modify data/carry) at env reset.
+
+        Args:
+            env (Any): The environment instance.
+            model (Union[MjModel, Model]): The simulation model.
+            data (Union[MjData, Data]): The simulation data.
+            carry (Any): Carry instance with additional state information.
+            backend (ModuleType): Backend module (e.g., numpy or jax.numpy).
+
+        Returns:
+            Tuple[Union[MjData, Data], Any]: The updated data and carry.
+        """
+        assert_backend_is_supported(backend)
+        return data, carry
+
     @property
     def frequency(self):
         """
