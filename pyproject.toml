@@ -4,10 +4,11 @@ requires = ["setuptools", "wheel", "wget", "pyyaml"]
 [project]
 name = "loco-mujoco"
 dependencies = [
-    "numpy<2.0",
+    "numpy>2.0",
     "scipy>=1.14.0",
-    "mujoco==3.2.7",    # todo: MjSpec API changed in 3.3.0, check why find functions are not supported anymore (no info in Mujoco changelog given)
-    "mujoco-mjx==3.2.7",
+    "mujoco>=3.5.0",    # todo: MjSpec API changed in 3.3.0, check why find functions are not supported anymore (no info in Mujoco changelog given)
+    "mujoco-mjx>=3.5.0",
+    "mujoco-warp>=3.5.0",
     "hydra-core",
     "jax",
     "flax",

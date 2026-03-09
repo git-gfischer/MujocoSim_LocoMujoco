@@ -54,11 +54,18 @@ class Mjx(Mujoco):
 
     Args:
         n_envs (int): Number of environments to run in parallel.
+        use_mjwarp (bool): If True, MjWarp will be used as the simulation backend instead of Mjx.
+        nconmax (int): Maximum number of contacts to allocate for warp
+        njmax (int): Maximum number of constraints to allocate for warp
         **kwargs: Additional arguments to pass to the Mujoco base class.
 
     """
 
-    def __init__(self, **kwargs):
+    def __init__(self,
+                 use_mjwarp=False,
+                 nconmax=None,
+                 njmax=None,
+                 **kwargs):
 
         # call base mujoco env
         super().__init__(**kwargs)
@@ -66,12 +73,23 @@ class Mjx(Mujoco):
         # add information to mdp_info
         self._mdp_info.mjx_env = True
 
-        # setup mjx model and data
-        mujoco.mj_resetData(self._model, self._data)
-        mujoco.mj_forward(self._model, self._data)
-        self.sys = mjx.put_model(self._model)
-        data = mjx.put_data(self._model, self._data)
-        self._first_data = mjx.forward(self.sys, data)
+        # time put model and data
+        self._use_mjwarp = use_mjwarp
+        if self._use_mjwarp:
+            import warnings
+            import time
+            # todo: fix once mjwarp is stable
+            warnings.warn(
+                "mjwarp is experimental and may not work with all environments. "
+                "Resetting is error prone. Training might work, but will not be optimal.",
+                UserWarning
+            )
+            time.sleep(3)
+            self.sys = mjx.put_model(self._model, impl='warp')
+            self._first_data = mjx.make_data(self._model, impl='warp', nconmax=nconmax, njmax=njmax)
+        else:
+            self.sys = mjx.put_model(self._model)
+            self._first_data = mjx.put_data(self._model, self._data)
 
     def mjx_reset(self, key: jax.random.PRNGKey) -> MjxState:
         """
@@ -122,7 +140,13 @@ class Mjx(Mujoco):
         carry = state.additional_carry
 
         # reset data
-        data = self._first_data
+        if self._use_mjwarp:
+            # todo: this is not a good way of resetting the data, all other entities should be reset as well!
+            # there is an issue with the warp backend that does not allow to reset the data properly
+            data = state.data.replace(qpos=jnp.zeros_like(state.data.qpos),
+                                qvel=jnp.zeros_like(state.data.qvel))
+        else:
+            data = self._first_data
 
         data, carry = self._mjx_reset_carry(self.sys, data, carry)
 
@@ -429,6 +453,7 @@ class Mjx(Mujoco):
         data, carry = self._domain_randomizer.reset(self, model, data, carry, jnp)
         data, carry = self._reward_function.reset(self, model, data, carry, jnp)
         data, carry = self._control_func.reset(self, model, data, carry, jnp)
+
         return data, carry
 
     def _mjx_step_finalize(self, obs: jnp.ndarray,
@@ -584,4 +609,3 @@ class Mjx(Mujoco):
     def mjx_env(self) -> bool:
         """Indicates whether this is an MJX environment."""
         return True
-

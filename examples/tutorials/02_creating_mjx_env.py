@@ -10,7 +10,7 @@ os.environ['XLA_FLAGS'] = (
     '--xla_gpu_triton_gemm_any=True ')
 
 # create env
-env = ImitationFactory.make("MjxUnitreeG1", default_dataset_conf=dict(task="stepinplace1"))
+env = ImitationFactory.make("MjxUnitreeG1", default_dataset_conf=dict(task="stepinplace1"), use_mjwarp=False)
 
 # create keys
 key = jax.random.key(0)

@@ -10,8 +10,8 @@
 [//]: # ([![PyPI]&#40;https://img.shields.io/pypi/v/loco-mujoco&#41;]&#40;https://pypi.org/project/loco-mujoco/&#41;)
 
 > 🚀 **Latest News:**
-> A **major release (v1.0)** just dropped! 🎉  
-> LocoMuJoCo now supports MJX and comes with new Jax algorithms. We also added many new environments and +22k datasets! 🚀   
+> A **new release (v1.1)** just dropped! 🎉  
+> **New:** MJX now supports the **MjWarp** backend for even faster parallel simulation on compatible GPUs.
 
 
 **LocoMuJoCo** is an **imitation learning benchmark** specifically designed for **whole-body control**.  
@@ -26,7 +26,7 @@ making it suitable for pure reinforcement learning as well.
 </div>
 
 ### Key Advantages 
-✅ Supports **MuJoCo** (single environment) and **MJX** (parallel environments) \
+✅ Supports **MuJoCo** (single environment) and **MJX/MJWarp** (parallel environments) \
 ✅ Includes **12 humanoid and 4 quadruped environments**, featuring 4 **biomechanical human models** \
 ✅ Clean single-file JAX algorithms for quick benchmarking (**PPO**, **GAIL**, **AMP**, **DeepMimic**)\
 ✅ Combined training and environment into one JIT‑compiled function for lightning‑fast training 🚀 \
@@ -109,6 +109,45 @@ For instance, you could run:
 ```bash
 loco-mujoco-set-all-caches --path "$HOME/.loco-mujoco-caches"
 ````
+
+---
+
+## Using MJX with the MjWarp backend
+
+LocoMuJoCo’s MJX environments can run either on the standard MJX backend or on the **MjWarp** backend.
+Switching to MjWarp can further accelerate parallel simulation on compatible GPUs.
+
+- **From the low-level MJX API**, pass `use_mjwarp=True` (and optionally `nconmax` / `njmax`) when creating an `Mjx` env:
+
+```python
+from loco_mujoco.core import Mjx
+
+mjx_env = Mjx(
+    spec=spec,
+    actuation_spec=action_spec,
+    observation_spec=observation_spec,
+    horizon=1000,
+    gamma=0.99,
+    n_envs=100,
+    use_mjwarp=True,   # switch MJX to the MjWarp backend
+    nconmax=3000,      # optional: max number of contacts for warp
+    njmax=None,        # optional: max number of constraints for warp
+)
+```
+
+- **From high-level factories** (e.g. `ImitationFactory`), you can forward the same flag:
+
+```python
+from loco_mujoco import ImitationFactory
+
+env = ImitationFactory.make(
+    "MjxUnitreeG1",
+    default_dataset_conf=dict(task="stepinplace1"),
+    use_mjwarp=True,
+)
+```
+
+For a complete example, see `examples/tutorials/02_creating_mjx_env.py`.
 
 ---
 
