@@ -67,9 +67,7 @@ class JaxRLAlgorithmBase:
     @classmethod
     def build_resume_train_fn(cls, env, agent_conf: AgentConfBase, mh: MetricsHandler = None):
         """ Returns the main train function of an RL algorithm used to resume training of an agent. """
-        raise NotImplementedError("Resume training not implemented yet.")
-        # todo: implement resume training, not working yet
-        #return lambda rng_key, agent_state: (cls._train_fn(rng_key, env, agent_conf, agent_state, mh=mh))
+        return lambda rng_key, agent_state: cls._train_fn(rng_key, env, agent_conf, agent_state, mh=mh)
 
     @classmethod
     def _train_fn(cls, rng, env,

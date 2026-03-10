@@ -57,11 +57,15 @@ class GAILAgentConf(AgentConfBase):
     def from_dict(cls, d):
         config = OmegaConf.create(d["config"])
         tx, disc_tx = GAILJax._get_optimizer(config)
+        expert_dataset = d.get("expert_dataset")
+        # expert_dataset is not saved; caller must re-attach via add_expert_dataset to resume training
+        if expert_dataset is not None:
+            expert_dataset = flax.serialization.from_state_dict(TrajectoryTransitions, expert_dataset)
         return cls(config=config,
                    network=flax.serialization.from_state_dict(ActorCritic, d["network"]),
                    discriminator=flax.serialization.from_state_dict(FullyConnectedNet, d["discriminator"]),
                    tx=tx, disc_tx=disc_tx,
-                   expert_dataset=flax.serialization.from_state_dict(TrajectoryTransitions, d["expert_dataset"]))
+                   expert_dataset=expert_dataset)
 
 
 @struct.dataclass
@@ -77,9 +81,29 @@ class GAILAgentState(AgentStateBase):
 
     @classmethod
     def from_dict(cls, d, agent_conf):
-        train_state = TrainState(apply_fn=agent_conf.network, tx=agent_conf.tx, **d["train_state"])
-        disc_state = TrainState(apply_fn=agent_conf.discriminator, tx=agent_conf.disc_tx, **d["discriminator"])
-        return cls(train_state, disc_state)
+        train_state = TrainState.create(
+            apply_fn=agent_conf.network.apply,
+            tx=agent_conf.tx,
+            params=d["train_state"]["params"],
+            run_stats=d["train_state"]["run_stats"],
+        )
+        opt_state = flax.serialization.from_state_dict(
+            train_state.opt_state, d["train_state"]["opt_state"]
+        )
+        train_state = train_state.replace(opt_state=opt_state)
+
+        disc_train_state = TrainState.create(
+            apply_fn=agent_conf.discriminator.apply,
+            tx=agent_conf.disc_tx,
+            params=d["discriminator"]["params"],
+            run_stats=d["discriminator"]["run_stats"],
+        )
+        disc_opt_state = flax.serialization.from_state_dict(
+            disc_train_state.opt_state, d["discriminator"]["opt_state"]
+        )
+        disc_train_state = disc_train_state.replace(opt_state=disc_opt_state)
+
+        return cls(train_state, disc_train_state)
 
 
 class GAILJax(JaxRLAlgorithmBase):
@@ -185,10 +209,7 @@ class GAILJax(JaxRLAlgorithmBase):
             network_params = network.init(_rng1, init_x)
             discrim_params = discriminator.init(_rng2, init_x)
 
-        else:
-            raise NotImplementedError("Loading of train state not implemented yet.")
-
-        # init new train states from old params
+        # init new train states from old params (or use loaded state when resuming)
         train_state = TrainState.create(
             apply_fn=network.apply,
             params=network_params["params"] if train_state is None else train_state.params,

@@ -55,7 +55,16 @@ class PPOAgentState(AgentStateBase):
 
     @classmethod
     def from_dict(cls, d, agent_conf):
-        train_state = TrainState(apply_fn=agent_conf.network, tx=agent_conf.tx, **d["train_state"])
+        train_state = TrainState.create(
+            apply_fn=agent_conf.network.apply,
+            tx=agent_conf.tx,
+            params=d["train_state"]["params"],
+            run_stats=d["train_state"]["run_stats"],
+        )
+        opt_state = flax.serialization.from_state_dict(
+            train_state.opt_state, d["train_state"]["opt_state"]
+        )
+        train_state = train_state.replace(opt_state=opt_state)
         return cls(train_state)
 
 
@@ -153,10 +162,7 @@ class PPOJax(JaxRLAlgorithmBase):
             init_x = jnp.zeros(env.info.observation_space.shape)
             network_params = network.init(_rng1, init_x)
 
-        else:
-            raise NotImplementedError("Loading of train state not implemented yet.")
-
-        # init new train states from old params
+        # init new train states from old params (or use loaded state when resuming)
         train_state = TrainState.create(
             apply_fn=network.apply,
             params=network_params["params"] if train_state is None else train_state.params,
