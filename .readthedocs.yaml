@@ -10,9 +10,10 @@ build:
   os: ubuntu-20.04
   tools:
     python: "3.11"
+  apt_packages:
+    - git-lfs
   jobs:
     post_checkout:
-      - apt-get install -y git-lfs
       - git lfs install
       - git lfs pull
     # You can also specify other tool versions:
