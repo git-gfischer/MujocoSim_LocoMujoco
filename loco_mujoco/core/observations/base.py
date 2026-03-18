@@ -741,6 +741,29 @@ class JointVelArray(Observation):
         return "qvel"
 
 
+class ActuatorForce(SimpleObs):
+    """
+    Observation Type holding the scalar force/torque produced by an actuator.
+
+    Notes:
+    - For MuJoCo motors, this corresponds to `data.actuator_force[act_id]`.
+    - The `xml_name` is the actuator name (not the joint name).
+    """
+
+    dim = 1
+
+    def _init_from_mj(self, env, model, data, current_obs_size):
+        act_id = model.actuator(self.xml_name).id
+        self.min, self.max = [-np.inf], [np.inf]
+        self.data_type_ind = np.array([act_id])
+        self.obs_ind = np.array([j for j in range(current_obs_size, current_obs_size + self.dim)])
+        self._initialized_from_mj = True
+
+    @classmethod
+    def data_type(cls):
+        return "actuator_force"
+
+
 class SitePos(SimpleObs):
     """
     Observation Type holding the x, y, z position of the site.
@@ -1094,6 +1117,7 @@ class ObservationType:
     JointVel = JointVel
     JointPosArray = JointPosArray
     JointVelArray = JointVelArray
+    ActuatorForce = ActuatorForce
     FreeJointPos = FreeJointPos
     EntryFromFreeJointPos = EntryFromFreeJointPos
     FreeJointPosNoXY = FreeJointPosNoXY

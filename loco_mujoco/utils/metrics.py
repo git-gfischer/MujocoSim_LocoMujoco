@@ -19,6 +19,38 @@ SUPPORTED_QUANTITIES = ["JointPosition", "JointVelocity", "BodyPosition", "BodyV
 SUPPORTED_MEASURES = ["EuclideanDistance", "DynamicTimeWarping", "DiscreteFrechetDistance"]
 
 
+class RelSiteNameConvention:
+    """
+    Resolve expected mimic site names from config (e.g. `left_foot_mimic`) to the
+    actual MuJoCo `site` names present in the model.
+
+    This prevents hard crashes when using custom XMLs that don't define all
+    mimic sites under the canonical names.
+    """
+
+    @staticmethod
+    def resolve(model: mujoco.MjModel, expected_site_name: str) -> str | None:
+        # 1) direct hit
+        expected_id = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_SITE, expected_site_name)
+        if expected_id != -1:
+            return expected_site_name
+
+        # 2) `<name>_mimic` -> `<name>` fallback
+        if expected_site_name.endswith("_mimic"):
+            candidate = expected_site_name[: -len("_mimic")]
+            candidate_id = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_SITE, candidate)
+            if candidate_id != -1:
+                return candidate
+
+        # 3) custom UnitreeH1 XMLs sometimes provide `imu` instead of `upper_body_mimic`
+        if expected_site_name == "upper_body_mimic":
+            imu_id = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_SITE, "imu")
+            if imu_id != -1:
+                return "imu"
+
+        return None
+
+
 @struct.dataclass
 class QuantityContainer:
     qpos: jnp.ndarray = struct.field(default_factory=lambda: jnp.array([]))
@@ -86,9 +118,15 @@ class MetricsHandler:
             self.rel_body_ids = [i for i in range(model.nbody)]
 
         if rel_site_names is not None:
-            self.rel_site_ids = [mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_SITE, name)
-                                 for name in rel_site_names]
-            assert -1 not in self.rel_site_ids, f"Site {rel_site_names[self.rel_site_ids.index(-1)]} not found."
+            resolved_ids = []
+            for expected in rel_site_names:
+                resolved = RelSiteNameConvention.resolve(model, expected)
+                if resolved is None:
+                    # Skip sites that don't exist in the model.
+                    # This allows validation to run with custom XMLs.
+                    continue
+                resolved_ids.append(mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_SITE, resolved))
+            self.rel_site_ids = resolved_ids
         else:
             self.rel_site_ids = [i for i in range(model.nsite)]
 
