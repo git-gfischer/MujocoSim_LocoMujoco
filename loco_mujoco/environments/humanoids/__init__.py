@@ -4,6 +4,7 @@ from .talos import Talos
 from .talos_mjx import MjxTalos
 from .unitreeH1 import UnitreeH1
 from .unitreeH1_mjx import MjxUnitreeH1
+from .unitreeH1_mpx import MpxUnitreeH1
 from .unitreeH1v2 import UnitreeH1v2
 from .unitreeH1v2_mjx import MjxUnitreeH1v2
 from .unitreeG1 import UnitreeG1
@@ -29,6 +30,7 @@ Talos.register()
 MjxTalos.register()
 UnitreeH1.register()
 MjxUnitreeH1.register()
+MpxUnitreeH1.register()
 UnitreeH1v2.register()
 MjxUnitreeH1v2.register()
 UnitreeG1.register()
